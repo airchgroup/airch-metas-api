@@ -22,6 +22,16 @@ const pool = mysql.createPool({
   connectionLimit: 10,
 });
 
+// ← CORREÇÃO PRINCIPAL: parse seguro, nunca quebra
+function safeJsonParse(str, fallback = []) {
+  if (!str || typeof str !== "string" || str.trim() === "") return fallback;
+  try {
+    return JSON.parse(str);
+  } catch {
+    return fallback;
+  }
+}
+
 function signToken(payload) {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" });
 }
@@ -181,14 +191,13 @@ app.get("/api/admin/goals", auth, adminOnly, async (req, res) => {
   res.json({
     rows: rows.map((g) => ({
       ...g,
-      activeDays: g.activeDaysJson ? JSON.parse(g.activeDaysJson) : [],
+      activeDays: safeJsonParse(g.activeDaysJson), // ← corrigido
     })),
   });
 });
 
 /* ---------------- USER ---------------- */
 
-// ✅ ESTA É A ROTA QUE ESTAVA FALTANDO
 app.get("/api/my/goals", auth, async (req, res) => {
   const { weekStart, weekEnd } = req.query;
   if (!weekStart || !weekEnd) return res.status(400).json({ error: "MISSING_QUERY" });
@@ -208,7 +217,7 @@ app.get("/api/my/goals", auth, async (req, res) => {
   res.json({
     rows: rows.map((g) => ({
       ...g,
-      activeDays: g.activeDaysJson ? JSON.parse(g.activeDaysJson) : [],
+      activeDays: safeJsonParse(g.activeDaysJson), // ← corrigido
     })),
   });
 });
