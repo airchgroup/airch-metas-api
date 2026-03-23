@@ -6,7 +6,25 @@ const bcrypt = require("bcrypt");
 const mysql = require("mysql2/promise");
 
 const app = express();
-app.use(cors());
+
+// ← CORREÇÃO: aceita qualquer domínio Vercel e localhost
+app.use(cors({
+  origin: function(origin, callback) {
+    // permite requisições sem origin (ex: mobile, Postman)
+    if (!origin) return callback(null, true);
+    // permite qualquer subdomínio do Vercel ou localhost
+    if (
+      origin.endsWith(".vercel.app") ||
+      origin.startsWith("http://localhost") ||
+      origin.startsWith("http://127.0.0.1")
+    ) {
+      return callback(null, true);
+    }
+    return callback(new Error("Not allowed by CORS"));
+  },
+  credentials: true
+}));
+
 app.use(express.json());
 
 const PORT = process.env.PORT || 3001;
@@ -22,7 +40,7 @@ const pool = mysql.createPool({
   connectionLimit: 10,
 });
 
-// ← CORREÇÃO PRINCIPAL: parse seguro, nunca quebra
+// parse seguro, nunca quebra
 function safeJsonParse(str, fallback = []) {
   if (!str || typeof str !== "string" || str.trim() === "") return fallback;
   try {
@@ -191,7 +209,7 @@ app.get("/api/admin/goals", auth, adminOnly, async (req, res) => {
   res.json({
     rows: rows.map((g) => ({
       ...g,
-      activeDays: safeJsonParse(g.activeDaysJson), // ← corrigido
+      activeDays: safeJsonParse(g.activeDaysJson),
     })),
   });
 });
@@ -217,7 +235,7 @@ app.get("/api/my/goals", auth, async (req, res) => {
   res.json({
     rows: rows.map((g) => ({
       ...g,
-      activeDays: safeJsonParse(g.activeDaysJson), // ← corrigido
+      activeDays: safeJsonParse(g.activeDaysJson),
     })),
   });
 });
@@ -278,7 +296,6 @@ app.post("/api/my/tasks/day", auth, async (req, res) => {
     );
     res.json({ ok: true });
   } catch {
-    // UNIQUE (goal_id, day_date) evita duplicar o mesmo dia
     res.json({ ok: true, already: true });
   }
 });
